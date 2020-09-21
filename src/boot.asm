@@ -48,8 +48,6 @@ paduntil	$38
 handle_rst38:
 ; interrupt handler in mode im 1
 ; more complex stuff here
-; the TI OS swap shadow and push both ix and iy normally, so we need to be exactly in the same state at the *end* of OS base interrupt call
-; so, swap shadows and push them to save them, check if we are in a BOOT interrupt context 
 ; port 06 is the flash lock status, if set, we may have HUGE issue
 	push	af
 	push	hl
@@ -62,7 +60,14 @@ handle_rst38:
 	call	_ChkIfOSInterruptAvailable
 ._do_boot_handler:
 	jp	nz, boot_interrupt_handler
+; the TI OS swap shadow and push both ix and iy normally and destroy all shadow
+; here, we pass the normal register set as the pseudo shadow, and switch back to restore destroyed register
+; hl, af, ix, iy are saved, save also bc and de
+	push	bc
+	push	de
 	call	boot_os_interrupt_jumper
+; we'll be back here with interrupt active and shadows swapped
+; so swap them again to restore our register and pop saved values
 	exx
 	ex	af, af'
 	pop	de
@@ -100,8 +105,6 @@ boot_interrupt_handler:
 	ret
 
 boot_os_interrupt_jumper:
-	push	bc
-	push	de
 	push	ix
 	push	iy
 	ld	iy, $D00080
