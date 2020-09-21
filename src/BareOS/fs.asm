@@ -1,13 +1,13 @@
 
 ; file VAT flags
-fs_exists_bit      := 1 shl 0 ;reset this to mark a file for deletion
-fs_new_file_bit    := 1 shl 1 ;indicates file must be created upon writing
+fs_exists_bit      := 0 ;reset this to mark a file for deletion
+fs_new_file_bit    := 1 ;indicates file must be created upon writing
 
 ; file data flags. If the flag byte is equal to $FF, then assume there are no remaining files
 ;fs_exists_bit      := 1 shl 0 ;reset this to mark a file for deletion (same as VAT flag)
-fs_executable_bit  := 1 shl 2 ;true if executable
-fs_system_bit      := 1 shl 3 ;true if system file
-fs_read_only_bit   := 1 shl 4 ;true if read-only
+fs_executable_bit  := 2 ;true if executable
+fs_system_bit      := 3 ;true if system file
+fs_read_only_bit   := 4 ;true if read-only
 
 fs_temp_name_ptr   := $D00101 ;store temp name pointer. temp names are file that have not yet been written to.
 fs_VAT_start       := $D01000 ;$2000 bytes = 2048x4 byte entries

@@ -1,85 +1,151 @@
+; TODO : create a TI OS compatibility mode for NMI and interrupt handler to speed up default non TI handlers
 
+handler_rst00:
+; rst $00 is the start of the boot at reset
 	di
 	rsmix
-	jp.lil boot_validate_os ;$000E4F ;rst 00
+	jp.lil	boot_main
+	
+paduntil	$08
+handler_rst08:
+; rst $08 is the boot NMI handler
 	di
 	rsmix
-	jp.lil boot_abort_and_restart ;rst 08
-;rst 10 - 30 are handled by OS
+	jp.lil	boot_nmi
+	
+paduntil	$10
+handler_rst10:
+;rst $10 - $30 are handled by OS
 	di
 	rsmix
-	jp.lil $020110 ;rst 10
+	jp.lil	$020110 ;rst 10
+	
+paduntil	$18
+handler_rst18:
 	di
 	rsmix
-	jp.lil $020114 ;rst 18
+	jp.lil	$020114 ;rst 18
+	
+paduntil	$20
+handler_rst20:
 	di
 	rsmix
-	jp.lil $020118 ;rst 20
+	jp.lil	$020118 ;rst 20
+	
+paduntil	$28
+handler_rst28:
 	di
 	rsmix
-	jp.lil $02011C ;rst 28
+	jp.lil	$02011C ;rst 28
+	
+paduntil	$30
+handler_rst30:
 	di
 	rsmix
-	jp.lil $020120 ;rst 30
-handle_rst38: ;rst 38 - interrupt handler
-	ex af,af' ;'
+	jp.lil	$020120 ;rst 30
+	
+paduntil	$38
+handle_rst38:
+; interrupt handler in mode im 1
+; more complex stuff here
+; the TI OS swap shadow and push both ix and iy normally, so we need to be exactly in the same state at the *end* of OS base interrupt call
+; so, swap shadows and push them to save them, check if we are in a BOOT interrupt context 
+; port 06 is the flash lock status, if set, we may have HUGE issue
+	push	af
+	push	hl
+	in0	a, ($06)
+	bit	2, a
+	jr	z, .available
+	ld	a, $03
+	out0	($06),a
+.available:
+	call	_ChkIfOSInterruptAvailable
+._do_boot_handler:
+	jp	nz, boot_interrupt_handler
+	call	boot_os_interrupt_jumper
 	exx
-	push ix
-	push iy
-	ld iy, $D00080
-	jp boot_interrupt_handler
-paduntil $47
-;$ = $47. Validate/check OS
-boot_validate_os:
-	ld sp,BaseSP
-	jp boot_boot_os ;$0220A8
+	ex	af, af'
+	pop	de
+	pop	bc
+	pop	hl
+	pop	af
+	ret
+	
+paduntil	$66
+handler_nmi:
+; the boot NMI check if OS is present, if so, pass the nmi to the OS
+	call	_ChkIfOSInterruptAvailable
+; TI OS compatibility mode, jump to $0220A8 which is the OS NMI (just crash)
+	jp	z, $0220A8
+	rst $08
 
-paduntil $66
-nmi_handler:
-	in0 a,($3D)
-	and a,$03
-	out0 ($3E),a
-	jr z,boot_validate_os
-	rst 0
-
-paduntil $80
-
+paduntil	$80
 ;follow with the jump table
 include 'table.asm'
 include 'table2.asm'
 START_OF_CODE:
 
 boot_interrupt_handler:
-	in0 a,($06)
-	bit 2,a
-	jr z,.dontsetport06
-	ld a,3
-	out0 ($06),a
-.dontsetport06:
-	ld hl,($D02AD7)
-	push hl
-	call boot_check_os_signature
-	jp z,$02010C
-	jq boot_menu
+; default interrupt handler
+; for now just acknowledge
+	push	bc
+	ld	hl, $F00014
+	ld	bc, (hl)
+	ld	l, $F00008 and $FF
+	ld	(hl), bc
+	pop	bc
+	pop	hl
+	pop	af
+	ei
+	ret
 
-include 'menus.asm'
-include 'code.asm'
-include 'gfx.asm'
-include 'cstd.asm'
-include 'rtc_code.asm'
-include 'spi_code.asm'
-include 'usb_code.asm'
-include 'routines.asm'
-include 'math.asm'
-include 'hexeditor.asm'
-include 'restore.asm'
+boot_os_interrupt_jumper:
+	push	bc
+	push	de
+	push	ix
+	push	iy
+	ld	iy, $D00080
+	ld	hl,($D02AD7)
+	push	hl
+	jp	$02010C
+
+; Checks if OS is valid and ready to receive an interrupt
+; Returns nz if not ready or z if ready
+_ChkIfOSInterruptAvailable:
+	ld	a, (boot_interrupt_ctx)
+	or	a, a
+	ret	nz
+	
+; Check if OS is valid
+_ChkIfOSAvailable:
+boot_check_signature:
+	ld	hl, $010100
+	ld	a, $5A
+	cp	a, (hl)
+	ret	nz
+	ld	a, $A5
+	inc	hl
+	cp	a, (hl)
+	ret
+	
+include	'menus.asm'
+include	'code.asm'
+include	'gfx.asm'
+include	'cstd.asm'
+include	'rtc_code.asm'
+include	'spi_code.asm'
+include	'usb_code.asm'
+include	'routines.asm'
+include	'math.asm'
+include	'hexeditor.asm'
+include	'restore.asm'
 
 	LEN_OF_CODE strcalc $-START_OF_CODE
 	display "Main code length: ",LEN_OF_CODE,$0A
 	TOTAL_ROM_SIZE = TOTAL_ROM_SIZE+$-START_OF_CODE
 
 START_OF_DATA:
-include 'font.asm'
+include	'font.asm'
 LCD_Controller_init_data:
 	db $38,$03,$0A,$1F
 	db $3F,$09,$02,$04
@@ -107,14 +173,14 @@ SpiDefaultCommands:
 .len:=$-.
 
 
-include 'strings.asm'
+include	'strings.asm'
 
 	LEN_OF_DATA strcalc $-START_OF_DATA
 	display "Data length: ",LEN_OF_DATA,$0A
 	TOTAL_ROM_SIZE = TOTAL_ROM_SIZE+$-START_OF_DATA
 
 
-
+boot_interrupt_ctx:=$D177BA
 ScrapMem:=$D0017C
 FlashByte:=$D0017B
 BaseSP:=$D1A87E

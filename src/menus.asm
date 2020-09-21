@@ -1,6 +1,9 @@
-boot_boot_os:
+boot_main:
+	ld sp,BaseSP
 	call boot_setup_hardware
-
+	ld	a, $FF
+	ld	(boot_interrupt_ctx), a
+	
 boot_menu:
 	ld hl,-2
 	call _frameset
@@ -185,7 +188,7 @@ test_aubc_routine:
 	ret
 
 
-boot_abort_and_restart:
+boot_nmi:
 	call boot_menu_draw
 	ld a,3
 	ld (ti.curRow),a
@@ -218,7 +221,7 @@ boot_menu_clear:
 
 boot_menu_draw:
 	call boot_menu_clear
-	call boot_check_os_signature
+	call boot_check_signature
 	jr z,.dont_say_no_os
 	ld hl,string_no_os
 	call _boot_puts_and_new_line

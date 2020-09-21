@@ -30,6 +30,8 @@ _boot_GetBootVerBuild: ;$ = $000664
 	ret
 
 boot_setup_hardware:
+	di
+	im	1
 	ld a,$03
 	out0 ($00),a
 	ld bc,$500C
@@ -163,16 +165,6 @@ _boot_set_8bpp_xlibc_mode:
 	ld ($E30018),a
 	ret
 
-boot_check_os_signature:
-	ld hl,$010100
-	ld a,$5A
-	cp a,(hl)
-	ret nz
-	ld a,$A5
-	inc hl
-	cp a,(hl)
-	ret
-
 ;log data to emulator console
 _dbgout:
 _dbgputs:
@@ -204,13 +196,16 @@ _boot_InBC_s:
 	ret
 
 boot_memset:
-	push hl
-	pop de
-	inc de
+	ex	de, hl
+	or	a, a
+	sbc	hl, hl
+	add	hl, de
+	ld	(hl), $00
+	cpi
+	ret	po
+	ex	de, hl
 	ldir
 	ret
-
-
 
 boot_index_os_list:
 	ld de,$D00000
@@ -272,12 +267,6 @@ boot_index_os_list:
 ;   Is only called directly in the bootcode by a function at 32F4h
 ;   TODO: investigate more
 _ResetPorts:
-	ret
-
-
-;   Checks if OS is valid and ready to receive an interrupt
-;   Returns nz if not ready or z if ready
-_ChkIfOSInterruptAvailable:
 	ret
 
 ; https://www.winbond.com/resource-files/w29gl032c_revh%20v3.0.pdf
@@ -424,15 +413,15 @@ flash_unlock:
 	set 2,a
 	out0 ($06),a
 	ld a,$04
-    di
-    jr $+2
-    di
-    rsmix
-    im 1
-    out0 ($28),a
-    in0 a,($28)
-    bit 2,a
-    ret
+	di
+	jr $+2
+	di
+	rsmix
+	im 1
+	out0 ($28),a
+	in0 a,($28)
+	bit 2,a
+	ret
 
 ;   identical to _WriteFlashByte
 _WriteFlashByteDuplicate:=_WriteFlashByte
