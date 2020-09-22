@@ -764,7 +764,9 @@ _boot_GetOnInt:
 
 
 _CheckEmulationBit:
-
+	ld	a, ($00007E)
+	bit	6, a
+	ret
 
 _boot_SectorsBegin:
 	ret
@@ -815,7 +817,6 @@ boot_get_keycode:
 _KeypadScan:
 _KeypadScanFull:
 boot_scan_keypad:
-	di             ; Disable interrupts
 	ld hl,$F50000
 	ld (hl),2      ; Set Single Scan mode
 .wait:

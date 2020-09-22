@@ -48,24 +48,23 @@ paduntil	$38
 handle_rst38:
 ; interrupt handler in mode im 1
 ; more complex stuff here
-; port 06 is the flash lock status, if set, we may have HUGE issue
 	push	af
 	push	hl
+; port 06 is the flash lock status, if set, we may have HUGE issue
 	in0	a, ($06)
 	bit	2, a
 	jr	z, .available
 	ld	a, $03
 	out0	($06),a
 .available:
-	call	_ChkIfOSInterruptAvailable
-._do_boot_handler:
+	call	boot_check_interrupt
 	jp	nz, boot_interrupt_handler
 ; the TI OS swap shadow and push both ix and iy normally and destroy all shadow
 ; here, we pass the normal register set as the pseudo shadow, and switch back to restore destroyed register
 ; hl, af, ix, iy are saved, save also bc and de
 	push	bc
 	push	de
-	call	boot_os_interrupt_jumper
+	call	boot_TIOS_interrupt_jumper
 ; we'll be back here with interrupt active and shadows swapped
 ; so swap them again to restore our register and pop saved values
 	exx
@@ -79,15 +78,21 @@ handle_rst38:
 paduntil	$66
 handler_nmi:
 ; the boot NMI check if OS is present, if so, pass the nmi to the OS
-	call	_ChkIfOSInterruptAvailable
+	push	af
+	push	hl
+	call	boot_check_interrupt
+	pop	hl
+	jr	nz, handler_rst08
 ; TI OS compatibility mode, jump to $0220A8 which is the OS NMI (just crash)
-	jp	z, $0220A8
-	rst $08
+	pop	af
+	jp	$0220A8
 
 paduntil	$80
+
 ;follow with the jump table
 include 'table.asm'
-include 'table2.asm'
+include 'table_extend.asm'
+
 START_OF_CODE:
 
 boot_interrupt_handler:
@@ -104,9 +109,11 @@ boot_interrupt_handler:
 	ei
 	ret
 
-boot_os_interrupt_jumper:
+boot_TIOS_interrupt_jumper:
 	push	ix
 	push	iy
+	ld	a, $D0
+	ld	MB, a
 	ld	iy, $D00080
 	ld	hl,($D02AD7)
 	push	hl
@@ -115,6 +122,7 @@ boot_os_interrupt_jumper:
 ; Checks if OS is valid and ready to receive an interrupt
 ; Returns nz if not ready or z if ready
 _ChkIfOSInterruptAvailable:
+boot_check_interrupt:
 	ld	a, (boot_interrupt_ctx)
 	or	a, a
 	ret	nz
@@ -131,14 +139,30 @@ boot_check_signature:
 	cp	a, (hl)
 	ret
 	
-include	'menus.asm'
+include	'menu.asm'
 include	'code.asm'
 include	'gfx.asm'
 include	'cstd.asm'
-include	'rtc_code.asm'
-include	'spi_code.asm'
-include	'usb_code.asm'
-include	'routines.asm'
+include	'rtc.asm'
+include	'spi.asm'
+include	'usb.asm'
+include 'routines/FLTMAX.asm'
+include 'routines/print4h.asm'
+include 'routines/print8h.asm'
+include 'routines/print16h.asm'
+include 'routines/print24h.asm'
+include 'routines/print32h.asm'
+;include 'routines/printf.asm'
+;include 'routines/sprintf.asm'
+include 'routines/strtok.asm'
+include 'routines/clearHeap.asm'
+include 'routines/heapAlloc.asm'
+include 'routines/pushOP.asm'
+include 'routines/popOP.asm'
+include 'routines/mov11b.asm'
+include 'routines/mov9ToOP.asm'
+include 'routines/mov9b.asm'
+include 'routines/mov8b.asm'
 include	'math.asm'
 include	'hexeditor.asm'
 include	'restore.asm'
