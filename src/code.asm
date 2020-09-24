@@ -139,30 +139,35 @@ boot_setup_hardware:
 	out (bc),a
 	inc a
 	out (bc),a
-	in0 a,($05)
-	set 6,a
-	out0 ($05),a
+	in0	a, ($05)
+	set	6, a
+	out0	($05), a
+	ld	hl, $E40000
+	ld	de, $D40000
+	ld	bc, 153600
+	ldir
 _boot_set_8bpp_xlibc_mode:
-	ld hl,$E30200				; palette mem
-	ld b,0
+; palette mem
+	ld	hl,$E30200
+	ld	b, 0
 .loop:
-	ld d,b
-	ld a,b
-	and a,$C0
-	srl d
+	ld	d, b
+	ld	a, b
+	and	a, $C0
+	srl	d
 	rra
-	ld e,a
-	ld a,$1F
-	and a,b
-	or a,e
-	ld (hl),a
-	inc hl
-	ld (hl),d
-	inc hl
-	inc b
-	jr nz,.loop
-	ld a,$27
-	ld ($E30018),a
+	ld	e, a
+	ld	a, $1F
+	and	a, b
+	or	a, e
+	ld	(hl), a
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	inc	b
+	jr	nz,.loop
+	ld	a,$27
+	ld	($E30018),a
 	ret
 
 ;log data to emulator console
@@ -819,10 +824,10 @@ _KeypadScanFull:
 boot_scan_keypad:
 	ld hl,$F50000
 	ld (hl),2      ; Set Single Scan mode
-.wait:
-	call _PutSpinner
+; 	call _PutSpinner
 	ld hl,$F50000
 	xor a,a
+.wait:
 	cp a,(hl)      ; Wait for Idle mode
 	jr nz,.wait
 	ret

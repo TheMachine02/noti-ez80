@@ -10,6 +10,7 @@ _memcpy:
 	ld	iy,0
 	add	iy,sp
 	ld	bc,(iy+9)	;count
+	or	a, a
 	sbc	hl,hl
 	sbc	hl,bc	;count==0?
 	jr	z,.L0
